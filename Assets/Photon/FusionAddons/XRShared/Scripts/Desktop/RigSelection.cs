@@ -1,4 +1,5 @@
 using Fusion.XR.Shared.Rig;
+using ParrelSync;
 using UnityEngine;
 using UnityEngine.Events;
 
@@ -69,13 +70,13 @@ namespace Fusion.XR.Shared.Desktop
                 return;
             }
 #endif
-            if (mode == Mode.ForceVR)
+            if (mode == Mode.ForceVR || !ClonesManager.IsClone())
             {
                 EnableVRRig();
                 return;
             }
 
-            if (mode == Mode.ForceDesktop)
+            if (mode == Mode.ForceDesktop || ClonesManager.IsClone())
             {
                 EnableDesktopRig();
                 return;

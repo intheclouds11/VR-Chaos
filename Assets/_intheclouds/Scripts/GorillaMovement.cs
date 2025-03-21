@@ -1,10 +1,10 @@
 ﻿using UnityEngine;
 
-public class Player : MonoBehaviour
+public class GorillaMovement : MonoBehaviour
 {
-    private static Player _instance;
+    private static GorillaMovement _instance;
 
-    public static Player Instance
+    public static GorillaMovement Instance
     {
         get { return _instance; }
     }
@@ -111,27 +111,6 @@ public class Player : MonoBehaviour
 
     private void Update()
     {
-        // if (MyInputSystem.Instance.WasGripActivated(true))
-        // {
-        //     Debug.Log("Left grip was activated!");
-        //     MyInputSystem.Instance.Vibrate(true, 0.5f, 0.5f, 50f);
-        // }
-        // else if (MyInputSystem.Instance.WasGripActivated(false))
-        // {
-        //     Debug.Log("Right grip was activated!");
-        //     MyInputSystem.Instance.Vibrate(false, 0.5f, 0.5f, 50f);
-        // }
-        // else if (MyInputSystem.Instance.WasTriggerActivated(true))
-        // {
-        //     Debug.Log("Left trigger was activated!");
-        //     MyInputSystem.Instance.Vibrate(true, 1f, 0.25f, 100f);
-        // }
-        // else if (MyInputSystem.Instance.WasTriggerActivated(false))
-        // {
-        //     Debug.Log("Right trigger was activated!");
-        //     MyInputSystem.Instance.Vibrate(false, 1f, 0.25f, 100f);
-        // }
-        
         
         bool leftHandColliding = false;
         bool rightHandColliding = false;
