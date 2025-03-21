@@ -15,7 +15,7 @@ MonoBehaviour:
   m_Description: 
   m_EnableEditors: 1
   m_MainEditorInstance:
-    Name: Editor
+    Name: Main Editor
     <CorrespondingNodeId>k__BackingField: 
     m_Nodes: []
     m_PlayerTag: 
@@ -25,6 +25,11 @@ MonoBehaviour:
   m_RemoteInstances: []
   m_OverridePort: 0
   m_Port: 0
+  m_Scenario:
+    m_Name: 
+    m_Stages: []
+    m_ConnectedInputs: []
+    m_HasStarted: 0
   m_MainEditorInstanceObsolete:
     rid: -2
   references:
