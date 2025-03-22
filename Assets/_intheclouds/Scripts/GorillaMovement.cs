@@ -1,14 +1,18 @@
-﻿using UnityEngine;
+﻿using System;
+using UnityEngine;
 
 public class GorillaMovement : MonoBehaviour
 {
-    private static GorillaMovement _instance;
+    public static GorillaMovement Instance;
 
-    public static GorillaMovement Instance
-    {
-        get { return _instance; }
-    }
+    [Header("Special Abilities")]
+    [SerializeField]
+    private float dashAttackCooldown = 3f;
 
+    [SerializeField]
+    private float dashSpeed = 10f;
+
+    [Header("Gorilla Movement")]
     public SphereCollider headCollider;
     public CapsuleCollider bodyCollider;
 
@@ -52,66 +56,70 @@ public class GorillaMovement : MonoBehaviour
 
     public bool disableMovement = false;
 
+    private Vector3 spawnedLocation;
+    public bool isDashAttacking { get; private set; }
+    private float lastDashAttackTime;
+
+    private HandTriggerDetection leftHandTriggerDetection, rightHandTriggerDetection;
+    private MeshRenderer leftFollowerMR, rightFollowerMR;
+    private Color originalFollowerColor;
+    private AudioSource audioSource;
+
+
     private void Awake()
     {
-        if (_instance != null && _instance != this)
-        {
-            Destroy(gameObject);
-        }
-        else
-        {
-            _instance = this;
-        }
-
+        Instance = this;
+        audioSource = GetComponent<AudioSource>();
         InitializeValues();
     }
 
     public void InitializeValues()
     {
+        leftHandTriggerDetection = leftHandFollower.GetComponentInChildren<HandTriggerDetection>();
+        rightHandTriggerDetection = rightHandFollower.GetComponentInChildren<HandTriggerDetection>();
         playerRigidBody = GetComponent<Rigidbody>();
+        leftFollowerMR = leftHandFollower.GetComponent<MeshRenderer>();
+        rightFollowerMR = rightHandFollower.GetComponent<MeshRenderer>();
+        originalFollowerColor = leftFollowerMR.material.color;
+
         velocityHistory = new Vector3[velocityHistorySize];
         lastLeftHandPosition = leftHandFollower.transform.position;
         lastRightHandPosition = rightHandFollower.transform.position;
         lastHeadPosition = headCollider.transform.position;
         velocityIndex = 0;
         lastPosition = transform.position;
+        spawnedLocation = lastPosition;
     }
 
-    private Vector3 CurrentLeftHandPosition()
+    public void SetNetworkUser(NetworkUser user)
     {
-        if ((PositionWithOffset(leftHandTransform, leftHandOffset) - headCollider.transform.position).magnitude < maxArmLength)
-        {
-            return PositionWithOffset(leftHandTransform, leftHandOffset);
-        }
-        else
-        {
-            return headCollider.transform.position +
-                   (PositionWithOffset(leftHandTransform, leftHandOffset) - headCollider.transform.position).normalized * maxArmLength;
-        }
+        user.onDamaged += OnDamaged;
+        user.onRespawned += OnRespawned;
     }
 
-    private Vector3 CurrentRightHandPosition()
+    private void OnDamaged(int damage, float knockBackAmount, Vector3 knockBackDirection)
     {
-        if ((PositionWithOffset(rightHandTransform, rightHandOffset) - headCollider.transform.position).magnitude < maxArmLength)
-        {
-            return PositionWithOffset(rightHandTransform, rightHandOffset);
-        }
-        else
-        {
-            return headCollider.transform.position +
-                   (PositionWithOffset(rightHandTransform, rightHandOffset) - headCollider.transform.position).normalized *
-                   maxArmLength;
-        }
+        playerRigidBody.AddForce(knockBackDirection * knockBackAmount, ForceMode.Impulse);
     }
 
-    private Vector3 PositionWithOffset(Transform transformToModify, Vector3 offsetVector)
+    private void OnRespawned()
     {
-        return transformToModify.position + transformToModify.rotation * offsetVector;
+        playerRigidBody.MovePosition(spawnedLocation);
     }
 
     private void Update()
     {
-        
+        disableMovement = PlayerStats.Instance.CurrentHealth == 0;
+
+        if (!disableMovement)
+        {
+            CheckDashAttack();
+        }
+        else
+        {
+            ResetHandFollowTriggers();
+        }
+
         bool leftHandColliding = false;
         bool rightHandColliding = false;
         Vector3 finalPosition;
@@ -277,6 +285,116 @@ public class GorillaMovement : MonoBehaviour
 
         wasLeftHandTouching = leftHandColliding;
         wasRightHandTouching = rightHandColliding;
+    }
+
+    private void CheckDashAttack()
+    {
+        // will be true before first dash attack and then anytime after cooldown
+        if (Time.time - lastDashAttackTime > dashAttackCooldown)
+        {
+            if (isDashAttacking)
+            {
+                isDashAttacking = false;
+                ResetHandFollowTriggers();
+            }
+            else
+            {
+                if (MyInputSystem.Instance.IsTriggerActive(HandSide.Left))
+                {
+                    leftFollowerMR.material.color = Color.red;
+                    if (leftHandTriggerDetection.handRelativeVelocity.magnitude > 2.5f)
+                    {
+                        DashAttack(HandSide.Left);
+                        return;
+                    }
+                }
+                else
+                {
+                    leftFollowerMR.material.color = originalFollowerColor;
+                }
+
+                if (MyInputSystem.Instance.IsTriggerActive(HandSide.Right))
+                {
+                    rightFollowerMR.material.color = Color.red;
+                    if (rightHandTriggerDetection.handRelativeVelocity.magnitude > 2.5f)
+                    {
+                        DashAttack(HandSide.Right);
+                        return;
+                    }
+                }
+                else
+                {
+                    rightFollowerMR.material.color = originalFollowerColor;
+                }
+            }
+        }
+    }
+
+    private void ResetHandFollowTriggers()
+    {
+        leftHandTriggerDetection.transform.localScale = Vector3.one;
+        rightHandTriggerDetection.transform.localScale = Vector3.one;
+        leftFollowerMR.material.color = originalFollowerColor;
+        rightFollowerMR.material.color = originalFollowerColor;
+    }
+
+    private void DashAttack(HandSide handSide)
+    {
+        // Debug.Log($"Dash attacking with handVelocity: {handVelocity}");
+        isDashAttacking = true;
+
+        // Scale up hand trigger for easier dash attack hitting
+        if (handSide == HandSide.Left)
+        {
+            leftHandTriggerDetection.transform.localScale *= 2f;
+        }
+        else
+        {
+            rightHandTriggerDetection.transform.localScale *= 2f;
+        }
+
+        var handDirection = handSide == HandSide.Left
+            ? leftHandTriggerDetection.handRelativeVelocity.normalized
+            : rightHandTriggerDetection.handRelativeVelocity.normalized;
+
+        playerRigidBody.linearVelocity = Vector3.zero;
+        playerRigidBody.AddForce(handDirection * dashSpeed, ForceMode.Impulse);
+
+        MyInputSystem.Instance.Vibrate(handSide, 0.75f, 1f, 100f);
+        audioSource.PlayOneShot(PlayerStats.Instance.DashSFX);
+        PlayerStats.Instance.networkUser.RPC_PlayDashAttackAudio();
+
+        leftFollowerMR.material.color = Color.grey;
+        rightFollowerMR.material.color = Color.grey;
+        lastDashAttackTime = Time.time;
+    }
+
+    private Vector3 CurrentLeftHandPosition()
+    {
+        if ((PositionWithOffset(leftHandTransform, leftHandOffset) - headCollider.transform.position).magnitude < maxArmLength)
+        {
+            return PositionWithOffset(leftHandTransform, leftHandOffset);
+        }
+
+        return headCollider.transform.position +
+               (PositionWithOffset(leftHandTransform, leftHandOffset) - headCollider.transform.position).normalized * maxArmLength;
+    }
+
+    private Vector3 CurrentRightHandPosition()
+    {
+        if ((PositionWithOffset(rightHandTransform, rightHandOffset) - headCollider.transform.position).magnitude < maxArmLength)
+        {
+            return PositionWithOffset(rightHandTransform, rightHandOffset);
+        }
+
+        return headCollider.transform.position +
+               (PositionWithOffset(rightHandTransform, rightHandOffset) - headCollider.transform.position).normalized *
+               maxArmLength;
+    }
+
+    private Vector3 PositionWithOffset(Transform transformToModify, Vector3 offsetVector)
+    {
+        return transformToModify.position + transformToModify.rotation * offsetVector;
     }
 
     private bool IterativeCollisionSphereCast(Vector3 startPosition, float sphereRadius, Vector3 movementVector, float precision,

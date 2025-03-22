@@ -1,17 +1,18 @@
+using System.Collections;
 using Fusion.XR.Shared.Rig;
 using ParrelSync;
 using UnityEngine;
 using UnityEngine.Events;
+using UnityEngine.XR.Management;
 
 
 namespace Fusion.XR.Shared.Desktop
 {
     /**
-     * 
+     *
      * Script to display an overlay UI to select desktop or VR mode, and active the associated rig, alongside the connexion component
-     * 
+     *
      **/
-
     public interface IRigSelection
     {
         public UnityEvent OnSelectRig { get; }
@@ -25,7 +26,7 @@ namespace Fusion.XR.Shared.Desktop
         public UnityEvent onSelectRig;
         public UnityEvent OnSelectRig => onSelectRig;
         public bool IsRigSelected => rigSelected;
-        public bool IsVRRigSelected => vrRig && vrRig.isActiveAndEnabled; 
+        public bool IsVRRigSelected => vrRig && vrRig.isActiveAndEnabled;
 
         public const string RIGMODE_VR = "VR";
         public const string RIGMODE_DESKTOP = "Desktop";
@@ -47,6 +48,7 @@ namespace Fusion.XR.Shared.Desktop
             ForceVR,
             ForceDesktop
         }
+
         public Mode mode = Mode.SelectedByUI;
 
         private void Awake()
@@ -58,8 +60,10 @@ namespace Fusion.XR.Shared.Desktop
             }
             else
             {
-                Debug.LogError("No connexion handler provided to RigSelection: risk of connection before choosing the appropriate hardware rig !");
+                Debug.LogError(
+                    "No connexion handler provided to RigSelection: risk of connection before choosing the appropriate hardware rig !");
             }
+
             vrRig.gameObject.SetActive(false);
             desktopRig.gameObject.SetActive(false);
 
@@ -70,15 +74,15 @@ namespace Fusion.XR.Shared.Desktop
                 return;
             }
 #endif
-            if (mode == Mode.ForceVR || !ClonesManager.IsClone())
-            {
-                EnableVRRig();
-                return;
-            }
-
             if (mode == Mode.ForceDesktop || ClonesManager.IsClone())
             {
                 EnableDesktopRig();
+                return;
+            }
+
+            if (mode == Mode.ForceVR || !ClonesManager.IsClone())
+            {
+                EnableVRRig();
                 return;
             }
 
@@ -109,11 +113,11 @@ namespace Fusion.XR.Shared.Desktop
             {
                 GUILayout.BeginVertical(GUI.skin.window);
                 {
-
                     if (GUILayout.Button("VR"))
                     {
                         EnableVRRig();
                     }
+
                     if (GUILayout.Button("Desktop"))
                     {
                         EnableDesktopRig();
@@ -143,7 +147,7 @@ namespace Fusion.XR.Shared.Desktop
         void OnRigSelected()
         {
             if (connexionHandler && connexionHandler.gameObject.activeSelf == false)
-            {            
+            {
                 connexionHandler.gameObject.SetActive(true);
                 var runner = connexionHandler.GetComponent<NetworkRunner>();
                 if (runner)
