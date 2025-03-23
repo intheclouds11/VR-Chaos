@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using Fusion;
 using Fusion.XR.Shared.Rig;
 using UnityEngine;
@@ -13,12 +15,32 @@ public class HandTriggerDetection : MonoBehaviour
 {
     [SerializeField]
     private HandSide handSide;
+
+    [SerializeField]
+    private Transform playerTransform;
+
     private HardwareRig hardwareRig;
     private Transform handTransform;
     private Transform headTransform;
     private Vector3 lastHandPos;
     private Vector3 lastHeadPos;
     private AudioSource audioSource;
+    private List<Climbable> climbablesInRange = new();
+    public bool IsClimbing { get; private set; }
+
+    public void StopClimbing()
+    {
+        IsClimbing = false;
+    }
+
+    private bool startedClimbing;
+    private bool wasClimbing;
+    private Vector3 climbAnchor;
+    private Vector3 handDelta;
+    private HandTriggerDetection otherHandTriggerDetection;
+
+    public event Action onStartClimbing;
+    public event Action<Vector3> onStopClimbing;
 
     /// <summary>
     /// Hand velocity relative to user's head. This is to decouple player's velocity from hand velocity, requiring user to thrust hand
@@ -32,6 +54,13 @@ public class HandTriggerDetection : MonoBehaviour
         audioSource = GetComponent<AudioSource>();
         playerStats = GetComponentInParent<PlayerStats>();
         hardwareRig = GetComponentInParent<HardwareRig>();
+        if (!playerStats.DesktopMode)
+        {
+            otherHandTriggerDetection = handSide == HandSide.Left
+                ? GorillaMovement.Instance.rightHandTriggerDetection
+                : GorillaMovement.Instance.leftHandTriggerDetection;
+        }
+
         handTransform = handSide == HandSide.Left ? hardwareRig.leftHand.transform : hardwareRig.rightHand.transform;
         headTransform = hardwareRig.headset.transform;
 
@@ -39,17 +68,25 @@ public class HandTriggerDetection : MonoBehaviour
         lastHeadPos = hardwareRig.headset.transform.position;
     }
 
+
     private void Update()
     {
-        HandVelocityCheck();
+        CheckHandVelocity();
+        if (!playerStats.DesktopMode && GorillaMovement.Instance.AllowClimbing)
+        {
+            CheckClimbing();
+        }
+
+        lastHandPos = handTransform.position;
+        lastHeadPos = headTransform.position;
     }
 
-    private void HandVelocityCheck()
+    private void CheckHandVelocity()
     {
         Vector3 handVelocity = (handTransform.position - lastHandPos) / Time.deltaTime;
         Vector3 headVelocity = (headTransform.position - lastHeadPos) / Time.deltaTime;
 
-        if (!playerStats.desktopMode)
+        if (!playerStats.DesktopMode)
         {
             handRelativeVelocity = handVelocity - headVelocity;
         }
@@ -57,9 +94,6 @@ public class HandTriggerDetection : MonoBehaviour
         {
             handRelativeVelocity = handVelocity;
         }
-
-        lastHandPos = handTransform.position;
-        lastHeadPos = headTransform.position;
 
         if (handRelativeVelocity.magnitude > 3)
         {
@@ -70,60 +104,62 @@ public class HandTriggerDetection : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        var netObj = other.GetComponentInParent<NetworkObject>();
-        if (!netObj)
-        {
-            // Debug.Log("fuark");
-            return;
-        }
+        if (playerStats.CurrentHealth < 1) return;
 
-        if (netObj.HasInputAuthority)
-        {
-            // Debug.LogWarning($"OnTriggerEnter: {other.transform.name} owned by player! ", other.transform);
-        }
-        else
-        {
-            // Debug.Log($"{handSide} Hand hit {other.transform.name} with velocity {handRelativeVelocity.magnitude} relative to head");
+        var netUser = other.GetComponentInParent<NetworkUser>();
+        var netEnemy = other.GetComponentInParent<NetworkEnemy>();
 
-            if (other.gameObject.layer == LayerMask.NameToLayer("Damageable"))
+        if (other.gameObject.layer == LayerMask.NameToLayer("Damageable"))
+        {
+            var isDashAttacking = !playerStats.DesktopMode && GorillaMovement.Instance.isDashAttacking;
+            if (!isDashAttacking && handRelativeVelocity.magnitude <= 3)
             {
-                HandleDamage(other);
+                // Debug.Log("-------Hand too slow to damage--------");
+                return;
             }
-            else if (other.gameObject.layer == LayerMask.NameToLayer("Hand"))
+
+            var damage = isDashAttacking ? playerStats.GetDashDamageValue : playerStats.GetLightDamageValue;
+            damage = playerStats.HasHighFiveBuff ? damage + 1 : damage;
+
+            var knockBackDirection = handRelativeVelocity.normalized;
+            float knockbackAmount;
+            if (!playerStats.DesktopMode && isDashAttacking)
             {
-                // TODO high five buff (networked too!)
+                knockbackAmount = 10f;
             }
+            else
+            {
+                knockbackAmount = 5f;
+            }
+
+            if (netUser && !netUser.HasInputAuthority && netUser.NetworkedHealth > 0)
+            {
+                netUser.RPC_DealDamage(damage, knockBackDirection * knockbackAmount);
+                HitFeedback(isDashAttacking);
+            }
+            else if (netEnemy && netEnemy.NetworkedHealth > 0)
+            {
+                netEnemy.RPC_DealDamageEnemy(damage, knockBackDirection * knockbackAmount);
+                HitFeedback(isDashAttacking);
+            }
+        }
+        else if (netUser && !netUser.HasInputAuthority && other.gameObject.layer == LayerMask.NameToLayer("Hand"))
+        {
+            HandleHighFiveBuff(netUser);
+        }
+        else if (other.TryGetComponent(out Climbable climbable) && !climbablesInRange.Contains(climbable))
+        {
+            // Debug.Log("climbablesInRange.Add(climbable)");
+            climbablesInRange.Add(climbable);
         }
     }
 
-    private void HandleDamage(Collider other)
+    private void OnTriggerExit(Collider other)
     {
-        var isDashAttacking = !playerStats.desktopMode && GorillaMovement.Instance.isDashAttacking;
-        if (!isDashAttacking && handRelativeVelocity.magnitude <= 3)
+        if (other.TryGetComponent(out Climbable climbable) && climbablesInRange.Contains(climbable))
         {
-            // Debug.Log("-------Hand too slow to damage--------");
-            return;
-        }
-
-        var damage = isDashAttacking ? playerStats.GetDashDamageValue : playerStats.GetLightDamageValue;
-        damage = playerStats.highFiveBuff ? damage + 1 : damage;
-            
-        var knockBackDirection = handRelativeVelocity.normalized;
-        float knockbackAmount;
-        if (!playerStats.desktopMode && isDashAttacking)
-        {
-            knockbackAmount = 10f;
-        }
-        else
-        {
-            knockbackAmount = 5f;
-        }
-
-        var netUser = other.GetComponentInParent<NetworkUser>();
-        if (netUser && netUser.NetworkedHealth > 0)
-        {
-            netUser.RPC_DealDamage(damage, knockbackAmount, knockBackDirection);
-            HitFeedback(isDashAttacking);
+            climbablesInRange.Remove(climbable);
+            // Debug.Log("climbablesInRange.Remove(climbable)");
         }
     }
 
@@ -133,8 +169,73 @@ public class HandTriggerDetection : MonoBehaviour
         audioSource.PlayOneShot(isDashAttacking ? playerStats.DashDamageSFX : playerStats.LightDamageSFX);
     }
 
-    private void HandleHighFiveBuff()
+    private void HandleHighFiveBuff(NetworkUser netUser)
     {
-        
+        if (!playerStats.HasHighFiveBuff)
+        {
+            playerStats.SetHighFiveBuff(true);
+        }
+
+        netUser.RPC_HandleHighFive();
+    }
+
+    private void CheckClimbing()
+    {
+        if (playerStats.DesktopMode) return;
+
+        var gripActivated = handSide == HandSide.Left
+            ? MyInputSystem.Instance.WasGripActivated(HandSide.Left)
+            : MyInputSystem.Instance.WasGripActivated(HandSide.Right);
+
+        var gripDeactivated = handSide == HandSide.Left
+            ? MyInputSystem.Instance.WasGripDeactivated(HandSide.Left)
+            : MyInputSystem.Instance.WasGripDeactivated(HandSide.Right);
+
+        if (!IsClimbing)
+        {
+            if (climbablesInRange.Count >= 1 && gripActivated)
+            {
+                Debug.Log($"climbablesInRange.Count: {climbablesInRange.Count}");
+                IsClimbing = true;
+                wasClimbing = true;
+            }
+        }
+        else if (gripDeactivated)
+        {
+            IsClimbing = false;
+        }
+
+        handDelta = handTransform.position - lastHandPos;
+
+        if (IsClimbing)
+        {
+            if (!startedClimbing)
+            {
+                Debug.Log($"{handSide} Hand Started Climbing");
+                startedClimbing = true;
+
+                if (!GorillaMovement.Instance.IsClimbing)
+                {
+                    onStartClimbing?.Invoke();
+                }
+                else
+                {
+                    otherHandTriggerDetection.StopClimbing();
+                }
+            }
+
+            playerTransform.position -= handDelta;
+        }
+        else if (wasClimbing)
+        {
+            Debug.Log($"{handSide} Hand Stopped Climbing");
+            wasClimbing = false;
+            startedClimbing = false;
+
+            if (!otherHandTriggerDetection.IsClimbing)
+            {
+                onStopClimbing?.Invoke(handDelta);
+            }
+        }
     }
 }

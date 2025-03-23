@@ -18,7 +18,7 @@ public class PlayerStats : MonoBehaviour
         private set
         {
             currentHealth = value;
-            if (!desktopMode)
+            if (!DesktopMode)
             {
                 healthIndicatorVR.text = $"Health: {currentHealth}/{startingHealth}";
             }
@@ -32,16 +32,16 @@ public class PlayerStats : MonoBehaviour
     [SerializeField]
     private int lightDamage = 1;
     public int GetLightDamageValue => lightDamage;
-    
+
     [SerializeField]
     private int dashDamage = 2;
     public int GetDashDamageValue => dashDamage;
-    
+
 
     [FormerlySerializedAs("healthIndicator")]
     [SerializeField]
     private TextMeshProUGUI healthIndicatorVR;
-    
+
     [SerializeField]
     private TextMeshProUGUI healthIndicatorDesktop;
 
@@ -57,21 +57,32 @@ public class PlayerStats : MonoBehaviour
     [SerializeField]
     private AudioClip dashSFX;
     public AudioClip DashSFX => dashSFX;
-    
+
     [SerializeField]
     private AudioClip lightDamageSFX;
     public AudioClip LightDamageSFX => lightDamageSFX;
-    
+
     [SerializeField]
     private AudioClip dashDamageSFX;
     public AudioClip DashDamageSFX => dashDamageSFX;
 
-
-    public NetworkUser networkUser { get; private set; }
-    public Transform head { get; private set; }
-    public bool desktopMode { get; private set; }
-    public bool highFiveBuff { get; private set; }
+    [SerializeField]
+    private AudioClip highFiveSFX;
     
+    public HardwareRig HardwareRig { get; private set; }
+    public NetworkUser NetworkUser { get; private set; }
+    public bool DesktopMode { get; private set; }
+    public bool HasHighFiveBuff { get; private set; }
+
+    public void SetHighFiveBuff(bool toggle)
+    {
+        HasHighFiveBuff = toggle;
+        if (toggle)
+        {
+            AudioSource.PlayClipAtPoint(highFiveSFX, HardwareRig.headset.transform.position);
+        }
+    }
+
     private AudioSource audioSource;
 
 
@@ -84,23 +95,23 @@ public class PlayerStats : MonoBehaviour
     private void Start()
     {
         audioSource = GetComponentInChildren<AudioSource>();
-        head = Camera.main?.transform;
-        desktopMode = DesktopMovement.Instance;
+        HardwareRig = GetComponentInChildren<HardwareRig>();
+        DesktopMode = DesktopMovement.Instance;
     }
 
     private void ResetStats()
     {
         CurrentHealth = startingHealth;
-        highFiveBuff = false;
+        HasHighFiveBuff = false;
     }
 
     public void SetNetworkUser(NetworkUser user)
     {
-        networkUser = user;
-        networkUser.onDamaged += TakeDamage;
-        networkUser.onRespawned += OnRespawned;
+        NetworkUser = user;
+        NetworkUser.onDamaged += TakeDamage;
+        NetworkUser.onRespawned += OnRespawned;
 
-        if (!desktopMode)
+        if (!DesktopMode)
         {
             GorillaMovement.Instance.SetNetworkUser(user);
         }
@@ -110,7 +121,7 @@ public class PlayerStats : MonoBehaviour
         }
     }
 
-    private void TakeDamage(int damage, float knockBackAmount, Vector3 knockBackDirection)
+    private void TakeDamage(int damage, Vector3 knockBackDirection)
     {
         var newHealth = CurrentHealth - damage;
 

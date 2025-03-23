@@ -1,6 +1,8 @@
 using System.Collections;
 using Fusion.XR.Shared.Rig;
+#if UNITY_EDITOR
 using ParrelSync;
+#endif
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.XR.Management;
@@ -74,6 +76,8 @@ namespace Fusion.XR.Shared.Desktop
                 return;
             }
 #endif
+#if UNITY_EDITOR
+
             if (mode == Mode.ForceDesktop || ClonesManager.IsClone())
             {
                 EnableDesktopRig();
@@ -85,6 +89,10 @@ namespace Fusion.XR.Shared.Desktop
                 EnableVRRig();
                 return;
             }
+#else
+            EnableVRRig();
+            return;
+#endif
 
             // In release build, we replace SelectedByUI by SelectedByUserPref unless overriden
             DisableDebugSelectedByUI();

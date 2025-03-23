@@ -82,6 +82,21 @@ public class MyInputSystem : MonoBehaviour
 
         return activated;
     }
+    
+    public bool WasGripDeactivated(HandSide handSide)
+    {
+        bool deactivated;
+        if (handSide == HandSide.Left)
+        {
+            deactivated = MyInputActions.XRILeftInteraction.Grip.WasReleasedThisFrame();
+        }
+        else
+        {
+            deactivated = MyInputActions.XRIRightInteraction.Grip.WasReleasedThisFrame();
+        }
+
+        return deactivated;
+    }
 
     public bool IsTriggerActive(HandSide handSide)
     {

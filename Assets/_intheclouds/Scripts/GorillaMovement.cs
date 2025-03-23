@@ -12,6 +12,10 @@ public class GorillaMovement : MonoBehaviour
     [SerializeField]
     private float dashSpeed = 10f;
 
+    [SerializeField]
+    private bool allowClimbing;
+    public bool AllowClimbing => allowClimbing;
+
     [Header("Gorilla Movement")]
     public SphereCollider headCollider;
     public CapsuleCollider bodyCollider;
@@ -26,7 +30,7 @@ public class GorillaMovement : MonoBehaviour
     private Vector3 lastRightHandPosition;
     private Vector3 lastHeadPosition;
 
-    private Rigidbody playerRigidBody;
+    private Rigidbody playerRigidbody;
 
     public int velocityHistorySize;
     public float maxArmLength = 1.5f;
@@ -60,10 +64,13 @@ public class GorillaMovement : MonoBehaviour
     public bool isDashAttacking { get; private set; }
     private float lastDashAttackTime;
 
-    private HandTriggerDetection leftHandTriggerDetection, rightHandTriggerDetection;
+    public HandTriggerDetection leftHandTriggerDetection { get; private set; }
+    public HandTriggerDetection rightHandTriggerDetection { get; private set; }
+    private Vector3 originalTriggerScale;
     private MeshRenderer leftFollowerMR, rightFollowerMR;
     private Color originalFollowerColor;
     private AudioSource audioSource;
+    public bool IsClimbing { get; private set; }
 
 
     private void Awake()
@@ -77,7 +84,13 @@ public class GorillaMovement : MonoBehaviour
     {
         leftHandTriggerDetection = leftHandFollower.GetComponentInChildren<HandTriggerDetection>();
         rightHandTriggerDetection = rightHandFollower.GetComponentInChildren<HandTriggerDetection>();
-        playerRigidBody = GetComponent<Rigidbody>();
+        originalTriggerScale = leftHandTriggerDetection.transform.localScale;
+        leftHandTriggerDetection.onStartClimbing += OnStartClimbing;
+        leftHandTriggerDetection.onStopClimbing += OnStopClimbing;
+        rightHandTriggerDetection.onStartClimbing += OnStartClimbing;
+        rightHandTriggerDetection.onStopClimbing += OnStopClimbing;
+        
+        playerRigidbody = GetComponent<Rigidbody>();
         leftFollowerMR = leftHandFollower.GetComponent<MeshRenderer>();
         rightFollowerMR = rightHandFollower.GetComponent<MeshRenderer>();
         originalFollowerColor = leftFollowerMR.material.color;
@@ -91,20 +104,54 @@ public class GorillaMovement : MonoBehaviour
         spawnedLocation = lastPosition;
     }
 
+    private void OnStartClimbing()
+    {
+        Debug.Log("GORILLA START CLIMBING");
+        leftHandFollower.SetParent(leftHandTransform, true);
+        rightHandFollower.SetParent(rightHandTransform, true);
+        playerRigidbody.linearVelocity = Vector3.zero;
+        playerRigidbody.isKinematic = true;
+        IsClimbing = true;
+    }
+    
+    private void OnStopClimbing(Vector3 climbForce)
+    {
+        Debug.Log($"!!! GORILLA STOP CLIMBING!!!  ClimbForce: {climbForce}");
+        leftHandFollower.SetParent(transform.parent, true);
+        rightHandFollower.SetParent(transform.parent, true);
+        leftHandFollower.position = leftHandTransform.position;
+        rightHandFollower.position = rightHandTransform.position;
+        lastLeftHandPosition = leftHandFollower.position;
+        lastRightHandPosition = rightHandFollower.position;
+        lastHeadPosition = headCollider.transform.position;
+        
+        playerRigidbody.isKinematic = false;
+        playerRigidbody.linearVelocity = Vector3.zero;
+        playerRigidbody.AddForce(-climbForce * 50f, ForceMode.Impulse);
+        Invoke(nameof(StopClimbing), 0.5f); // prevent accidental jumping while being boosted by climbForce
+    }
+
+    private void StopClimbing()
+    {
+        IsClimbing = false;
+    }
+
     public void SetNetworkUser(NetworkUser user)
     {
         user.onDamaged += OnDamaged;
         user.onRespawned += OnRespawned;
     }
 
-    private void OnDamaged(int damage, float knockBackAmount, Vector3 knockBackDirection)
+    private void OnDamaged(int damage, Vector3 knockBack)
     {
-        playerRigidBody.AddForce(knockBackDirection * knockBackAmount, ForceMode.Impulse);
+        playerRigidbody.linearVelocity = Vector3.zero;
+        playerRigidbody.AddForce(knockBack, ForceMode.Impulse);
     }
 
     private void OnRespawned()
     {
-        playerRigidBody.MovePosition(spawnedLocation);
+        playerRigidbody.linearVelocity = Vector3.zero;
+        playerRigidbody.MovePosition(spawnedLocation);
     }
 
     private void Update()
@@ -120,6 +167,14 @@ public class GorillaMovement : MonoBehaviour
             ResetHandFollowTriggers();
         }
 
+        if (!IsClimbing)
+        {
+            HandleMovement();
+        }
+    }
+
+    private void HandleMovement()
+    {
         bool leftHandColliding = false;
         bool rightHandColliding = false;
         Vector3 finalPosition;
@@ -148,7 +203,7 @@ public class GorillaMovement : MonoBehaviour
                 firstIterationLeftHand = finalPosition - CurrentLeftHandPosition();
             }
 
-            playerRigidBody.linearVelocity = Vector3.zero;
+            playerRigidbody.linearVelocity = Vector3.zero;
 
             leftHandColliding = true;
         }
@@ -170,7 +225,7 @@ public class GorillaMovement : MonoBehaviour
                 firstIterationRightHand = finalPosition - CurrentRightHandPosition();
             }
 
-            playerRigidBody.linearVelocity = Vector3.zero;
+            playerRigidbody.linearVelocity = Vector3.zero;
 
             rightHandColliding = true;
         }
@@ -204,7 +259,7 @@ public class GorillaMovement : MonoBehaviour
 
         if (rigidBodyMovement != Vector3.zero)
         {
-            transform.position = transform.position + rigidBodyMovement;
+            transform.position += rigidBodyMovement;
         }
 
         lastHeadPosition = headCollider.transform.position;
@@ -247,11 +302,11 @@ public class GorillaMovement : MonoBehaviour
             {
                 if (denormalizedVelocityAverage.magnitude * jumpMultiplier > maxJumpSpeed)
                 {
-                    playerRigidBody.linearVelocity = denormalizedVelocityAverage.normalized * maxJumpSpeed;
+                    playerRigidbody.linearVelocity = denormalizedVelocityAverage.normalized * maxJumpSpeed;
                 }
                 else
                 {
-                    playerRigidBody.linearVelocity = jumpMultiplier * denormalizedVelocityAverage;
+                    playerRigidbody.linearVelocity = jumpMultiplier * denormalizedVelocityAverage;
                 }
             }
         }
@@ -282,7 +337,6 @@ public class GorillaMovement : MonoBehaviour
 
         leftHandFollower.position = lastLeftHandPosition;
         rightHandFollower.position = lastRightHandPosition;
-
         wasLeftHandTouching = leftHandColliding;
         wasRightHandTouching = rightHandColliding;
     }
@@ -332,8 +386,8 @@ public class GorillaMovement : MonoBehaviour
 
     private void ResetHandFollowTriggers()
     {
-        leftHandTriggerDetection.transform.localScale = Vector3.one;
-        rightHandTriggerDetection.transform.localScale = Vector3.one;
+        leftHandTriggerDetection.transform.localScale = originalTriggerScale;
+        rightHandTriggerDetection.transform.localScale = originalTriggerScale;
         leftFollowerMR.material.color = originalFollowerColor;
         rightFollowerMR.material.color = originalFollowerColor;
     }
@@ -346,23 +400,23 @@ public class GorillaMovement : MonoBehaviour
         // Scale up hand trigger for easier dash attack hitting
         if (handSide == HandSide.Left)
         {
-            leftHandTriggerDetection.transform.localScale *= 2f;
+            leftHandTriggerDetection.transform.localScale *= 1.5f;
         }
         else
         {
-            rightHandTriggerDetection.transform.localScale *= 2f;
+            rightHandTriggerDetection.transform.localScale *= 1.5f;
         }
 
         var handDirection = handSide == HandSide.Left
             ? leftHandTriggerDetection.handRelativeVelocity.normalized
             : rightHandTriggerDetection.handRelativeVelocity.normalized;
 
-        playerRigidBody.linearVelocity = Vector3.zero;
-        playerRigidBody.AddForce(handDirection * dashSpeed, ForceMode.Impulse);
+        playerRigidbody.linearVelocity = Vector3.zero;
+        playerRigidbody.AddForce(handDirection * dashSpeed, ForceMode.Impulse);
 
         MyInputSystem.Instance.Vibrate(handSide, 0.75f, 1f, 100f);
         audioSource.PlayOneShot(PlayerStats.Instance.DashSFX);
-        PlayerStats.Instance.networkUser.RPC_PlayDashAttackAudio();
+        PlayerStats.Instance.NetworkUser.RPC_PlayDashAttackAudio();
 
         leftFollowerMR.material.color = Color.grey;
         rightFollowerMR.material.color = Color.grey;

@@ -8,13 +8,13 @@ public class NetworkUser : NetworkBehaviour
     public int NetworkedHealth { get; set; }
 
     private PlayerStats playerStats;
-    public event Action<int, float, Vector3> onDamaged;
+    public event Action<int, Vector3> onDamaged;
     public event Action onRespawned;
     private const float damageCooldown = 0.5f;
     private float lastDamageTime;
     private AudioSource audioSource;
 
-    
+
     private void Start()
     {
         audioSource = GetComponentInChildren<AudioSource>();
@@ -25,6 +25,17 @@ public class NetworkUser : NetworkBehaviour
             playerStats.SetNetworkUser(this);
 
             NetworkedHealth = playerStats.CurrentHealth;
+        }
+        
+    }
+
+    public override void Spawned()
+    {
+        Debug.Log("NetworkUser -------Spawned");
+
+        if (Runner.IsSharedModeMasterClient)
+        {
+            EnemySpawner.Instance.SpawnEnemies();
         }
     }
 
@@ -37,7 +48,7 @@ public class NetworkUser : NetworkBehaviour
     }
 
     [Rpc(RpcSources.All, RpcTargets.StateAuthority)]
-    public void RPC_DealDamage(int damage, float knockBackAmount, Vector3 knockBackDirection)
+    public void RPC_DealDamage(int damage, Vector3 knockBack)
     {
         if (!CanDamage()) return;
 
@@ -46,17 +57,16 @@ public class NetworkUser : NetworkBehaviour
         {
             NetworkedHealth = newHealth;
         }
-        else 
+        else
         {
             NetworkedHealth = 0;
             RPC_HandleDeath();
         }
-        
-        Debug.Log($"Before RPC_PlayDamageAudio(newHealth <= 0). newHealth is {newHealth}");
+
         RPC_PlayDamageAudio(newHealth <= 0);
 
         lastDamageTime = Time.time;
-        onDamaged?.Invoke(damage, knockBackAmount, knockBackDirection);
+        onDamaged?.Invoke(damage, knockBack);
     }
 
     private bool CanDamage()
@@ -85,13 +95,13 @@ public class NetworkUser : NetworkBehaviour
         }
         else
         {
-            Debug.Log($"RPC_PlayDamageAudio !HasInputAuthority");
+            // Debug.Log($"RPC_PlayDamageAudio !HasInputAuthority");
             audioSource.PlayOneShot(died ? PlayerStats.Instance.DiedSFX : PlayerStats.Instance.HitSFX);
         }
     }
-    
+
     [Rpc(RpcSources.StateAuthority, RpcTargets.All)]
-    public void RPC_PlayDashAttackAudio() 
+    public void RPC_PlayDashAttackAudio()
     {
         if (HasInputAuthority)
         {
@@ -117,5 +127,15 @@ public class NetworkUser : NetworkBehaviour
     {
         onRespawned?.Invoke();
         NetworkedHealth = playerStats.CurrentHealth;
+    }
+
+    [Rpc(RpcSources.All, RpcTargets.StateAuthority)]
+    public void RPC_HandleHighFive()
+    {
+        if (!playerStats.HasHighFiveBuff)
+        {
+            Debug.Log($"RPC_HandleHighFive");
+            playerStats.SetHighFiveBuff(true);
+        }
     }
 }
