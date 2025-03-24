@@ -73,6 +73,9 @@ public class PlayerStats : MonoBehaviour
     public NetworkUser NetworkUser { get; private set; }
     public bool DesktopMode { get; private set; }
     public bool HasHighFiveBuff { get; private set; }
+    public float AttackCooldown { get; private set; } = 0.5f;
+    public float LastAttackTime { get; set; }
+    
 
     public void SetHighFiveBuff(bool toggle)
     {

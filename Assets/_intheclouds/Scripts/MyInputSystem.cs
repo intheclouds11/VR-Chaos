@@ -52,6 +52,36 @@ public class MyInputSystem : MonoBehaviour
             }
         }
     }
+    
+    public bool WasPrimaryButtonActivated(HandSide handSide)
+    {
+        bool activated;
+        if (handSide == HandSide.Left)
+        {
+            activated = MyInputActions.XRILeftInteraction.PrimaryButton.WasPressedThisFrame();
+        }
+        else
+        {
+            activated = MyInputActions.XRIRightInteraction.PrimaryButton.WasPressedThisFrame();
+        }
+    
+        return activated;
+    }
+    
+    public bool WasSecondaryButtonActivated(HandSide handSide)
+    {
+        bool activated;
+        if (handSide == HandSide.Left)
+        {
+            activated = MyInputActions.XRILeftInteraction.SecondaryButton.WasPressedThisFrame();
+        }
+        else
+        {
+            activated = MyInputActions.XRIRightInteraction.SecondaryButton.WasPressedThisFrame();
+        }
+    
+        return activated;
+    }
 
     public bool IsGripActive(HandSide handSide)
     {

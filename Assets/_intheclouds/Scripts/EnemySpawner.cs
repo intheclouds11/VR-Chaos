@@ -14,23 +14,19 @@ public class EnemySpawner : NetworkBehaviour
     [SerializeField]
     private List<SpawnPoint> spawnPoints;
 
+    private bool spawned;
+
 
     private void Awake()
     {
         Instance = this;
     }
 
-    // public void PlayerJoined(PlayerRef player)
-    // {
-    //     Debug.Log("EnemySpawner -------PlayerJoined");
-    //     if (Runner.IsSharedModeMasterClient)
-    //     {
-    //         SpawnEnemies();
-    //     }
-    // }
-
     public void SpawnEnemies()
     {
+        if (spawned) return;
+
+        spawned = true;
         var spawnPoint = spawnPoints.First();
         // Debug.Log($"Spawning enemies! enemy: {enemyPrefab}, spawnPoint: {spawnPoint}");
         Runner.Spawn(enemyPrefab, spawnPoint.transform.position, spawnPoint.transform.rotation);

@@ -1048,7 +1048,7 @@ public partial class @MyInputActions: IInputActionCollection2, IDisposable
                     ""name"": ""Scale Toggle"",
                     ""type"": ""Button"",
                     ""id"": ""80ed7d74-56de-473c-bf76-da3bdd16b562"",
-                    ""expectedControlType"": ""Button"",
+                    ""expectedControlType"": """",
                     ""processors"": """",
                     ""interactions"": """",
                     ""initialStateCheck"": false
@@ -1061,6 +1061,24 @@ public partial class @MyInputActions: IInputActionCollection2, IDisposable
                     ""processors"": """",
                     ""interactions"": """",
                     ""initialStateCheck"": true
+                },
+                {
+                    ""name"": ""PrimaryButton"",
+                    ""type"": ""Button"",
+                    ""id"": ""5ae3cfea-9092-4649-90d2-cf60f6ed8524"",
+                    ""expectedControlType"": """",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false
+                },
+                {
+                    ""name"": ""SecondaryButton"",
+                    ""type"": ""Button"",
+                    ""id"": ""be5f0e6f-605a-40b8-8d17-adbf233db910"",
+                    ""expectedControlType"": """",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false
                 }
             ],
             ""bindings"": [
@@ -1349,6 +1367,28 @@ public partial class @MyInputActions: IInputActionCollection2, IDisposable
                     ""action"": ""Translate Manipulation"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""9d4cae71-f03a-4d22-85e9-89c7d3b1a6d5"",
+                    ""path"": ""<XRController>{LeftHand}/primaryButton"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""PrimaryButton"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""625c7705-49ea-4bf2-8bba-4b7e9cfcb728"",
+                    ""path"": ""<XRController>{LeftHand}/secondaryButton"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""SecondaryButton"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
                 }
             ]
         },
@@ -1369,7 +1409,7 @@ public partial class @MyInputActions: IInputActionCollection2, IDisposable
                     ""name"": ""Teleport Mode Cancel"",
                     ""type"": ""Button"",
                     ""id"": ""89ce8348-6001-41a3-85b9-f8f2e2dcad7c"",
-                    ""expectedControlType"": ""Button"",
+                    ""expectedControlType"": """",
                     ""processors"": """",
                     ""interactions"": """",
                     ""initialStateCheck"": false
@@ -2132,6 +2172,24 @@ public partial class @MyInputActions: IInputActionCollection2, IDisposable
                     ""processors"": """",
                     ""interactions"": """",
                     ""initialStateCheck"": true
+                },
+                {
+                    ""name"": ""PrimaryButton"",
+                    ""type"": ""Button"",
+                    ""id"": ""d0d5139e-82cd-473e-a35e-4782289ab805"",
+                    ""expectedControlType"": """",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false
+                },
+                {
+                    ""name"": ""SecondaryButton"",
+                    ""type"": ""Button"",
+                    ""id"": ""5169599d-0d91-4e24-95c0-246f0d762e20"",
+                    ""expectedControlType"": """",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false
                 }
             ],
             ""bindings"": [
@@ -2396,6 +2454,28 @@ public partial class @MyInputActions: IInputActionCollection2, IDisposable
                     ""processors"": ""ScaleVector2(x=0),StickDeadzone"",
                     ""groups"": """",
                     ""action"": ""Scale Over Time"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""7e30b93d-9851-4f32-985c-8a58bcd92268"",
+                    ""path"": ""<XRController>{RightHand}/primaryButton"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""PrimaryButton"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""97e63a1c-c304-4a3f-b233-dbe356e5a770"",
+                    ""path"": ""<XRController>{RightHand}/secondaryButton"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""SecondaryButton"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
                 },
@@ -3151,6 +3231,8 @@ public partial class @MyInputActions: IInputActionCollection2, IDisposable
         m_XRILeftInteraction_DirectionalManipulation = m_XRILeftInteraction.FindAction("Directional Manipulation", throwIfNotFound: true);
         m_XRILeftInteraction_ScaleToggle = m_XRILeftInteraction.FindAction("Scale Toggle", throwIfNotFound: true);
         m_XRILeftInteraction_ScaleOverTime = m_XRILeftInteraction.FindAction("Scale Over Time", throwIfNotFound: true);
+        m_XRILeftInteraction_PrimaryButton = m_XRILeftInteraction.FindAction("PrimaryButton", throwIfNotFound: true);
+        m_XRILeftInteraction_SecondaryButton = m_XRILeftInteraction.FindAction("SecondaryButton", throwIfNotFound: true);
         // XRI Left Locomotion
         m_XRILeftLocomotion = asset.FindActionMap("XRI Left Locomotion", throwIfNotFound: true);
         m_XRILeftLocomotion_TeleportMode = m_XRILeftLocomotion.FindAction("Teleport Mode", throwIfNotFound: true);
@@ -3189,6 +3271,8 @@ public partial class @MyInputActions: IInputActionCollection2, IDisposable
         m_XRIRightInteraction_DirectionalManipulation = m_XRIRightInteraction.FindAction("Directional Manipulation", throwIfNotFound: true);
         m_XRIRightInteraction_ScaleToggle = m_XRIRightInteraction.FindAction("Scale Toggle", throwIfNotFound: true);
         m_XRIRightInteraction_ScaleOverTime = m_XRIRightInteraction.FindAction("Scale Over Time", throwIfNotFound: true);
+        m_XRIRightInteraction_PrimaryButton = m_XRIRightInteraction.FindAction("PrimaryButton", throwIfNotFound: true);
+        m_XRIRightInteraction_SecondaryButton = m_XRIRightInteraction.FindAction("SecondaryButton", throwIfNotFound: true);
         // XRI Right Locomotion
         m_XRIRightLocomotion = asset.FindActionMap("XRI Right Locomotion", throwIfNotFound: true);
         m_XRIRightLocomotion_TeleportMode = m_XRIRightLocomotion.FindAction("Teleport Mode", throwIfNotFound: true);
@@ -3723,6 +3807,8 @@ public partial class @MyInputActions: IInputActionCollection2, IDisposable
     private readonly InputAction m_XRILeftInteraction_DirectionalManipulation;
     private readonly InputAction m_XRILeftInteraction_ScaleToggle;
     private readonly InputAction m_XRILeftInteraction_ScaleOverTime;
+    private readonly InputAction m_XRILeftInteraction_PrimaryButton;
+    private readonly InputAction m_XRILeftInteraction_SecondaryButton;
     /// <summary>
     /// Provides access to input actions defined in input action map "XRI Left Interaction".
     /// </summary>
@@ -3782,6 +3868,14 @@ public partial class @MyInputActions: IInputActionCollection2, IDisposable
         /// Provides access to the underlying input action "XRILeftInteraction/ScaleOverTime".
         /// </summary>
         public InputAction @ScaleOverTime => m_Wrapper.m_XRILeftInteraction_ScaleOverTime;
+        /// <summary>
+        /// Provides access to the underlying input action "XRILeftInteraction/PrimaryButton".
+        /// </summary>
+        public InputAction @PrimaryButton => m_Wrapper.m_XRILeftInteraction_PrimaryButton;
+        /// <summary>
+        /// Provides access to the underlying input action "XRILeftInteraction/SecondaryButton".
+        /// </summary>
+        public InputAction @SecondaryButton => m_Wrapper.m_XRILeftInteraction_SecondaryButton;
         /// <summary>
         /// Provides access to the underlying input action map instance.
         /// </summary>
@@ -3844,6 +3938,12 @@ public partial class @MyInputActions: IInputActionCollection2, IDisposable
             @ScaleOverTime.started += instance.OnScaleOverTime;
             @ScaleOverTime.performed += instance.OnScaleOverTime;
             @ScaleOverTime.canceled += instance.OnScaleOverTime;
+            @PrimaryButton.started += instance.OnPrimaryButton;
+            @PrimaryButton.performed += instance.OnPrimaryButton;
+            @PrimaryButton.canceled += instance.OnPrimaryButton;
+            @SecondaryButton.started += instance.OnSecondaryButton;
+            @SecondaryButton.performed += instance.OnSecondaryButton;
+            @SecondaryButton.canceled += instance.OnSecondaryButton;
         }
 
         /// <summary>
@@ -3891,6 +3991,12 @@ public partial class @MyInputActions: IInputActionCollection2, IDisposable
             @ScaleOverTime.started -= instance.OnScaleOverTime;
             @ScaleOverTime.performed -= instance.OnScaleOverTime;
             @ScaleOverTime.canceled -= instance.OnScaleOverTime;
+            @PrimaryButton.started -= instance.OnPrimaryButton;
+            @PrimaryButton.performed -= instance.OnPrimaryButton;
+            @PrimaryButton.canceled -= instance.OnPrimaryButton;
+            @SecondaryButton.started -= instance.OnSecondaryButton;
+            @SecondaryButton.performed -= instance.OnSecondaryButton;
+            @SecondaryButton.canceled -= instance.OnSecondaryButton;
         }
 
         /// <summary>
@@ -4330,6 +4436,8 @@ public partial class @MyInputActions: IInputActionCollection2, IDisposable
     private readonly InputAction m_XRIRightInteraction_DirectionalManipulation;
     private readonly InputAction m_XRIRightInteraction_ScaleToggle;
     private readonly InputAction m_XRIRightInteraction_ScaleOverTime;
+    private readonly InputAction m_XRIRightInteraction_PrimaryButton;
+    private readonly InputAction m_XRIRightInteraction_SecondaryButton;
     /// <summary>
     /// Provides access to input actions defined in input action map "XRI Right Interaction".
     /// </summary>
@@ -4389,6 +4497,14 @@ public partial class @MyInputActions: IInputActionCollection2, IDisposable
         /// Provides access to the underlying input action "XRIRightInteraction/ScaleOverTime".
         /// </summary>
         public InputAction @ScaleOverTime => m_Wrapper.m_XRIRightInteraction_ScaleOverTime;
+        /// <summary>
+        /// Provides access to the underlying input action "XRIRightInteraction/PrimaryButton".
+        /// </summary>
+        public InputAction @PrimaryButton => m_Wrapper.m_XRIRightInteraction_PrimaryButton;
+        /// <summary>
+        /// Provides access to the underlying input action "XRIRightInteraction/SecondaryButton".
+        /// </summary>
+        public InputAction @SecondaryButton => m_Wrapper.m_XRIRightInteraction_SecondaryButton;
         /// <summary>
         /// Provides access to the underlying input action map instance.
         /// </summary>
@@ -4451,6 +4567,12 @@ public partial class @MyInputActions: IInputActionCollection2, IDisposable
             @ScaleOverTime.started += instance.OnScaleOverTime;
             @ScaleOverTime.performed += instance.OnScaleOverTime;
             @ScaleOverTime.canceled += instance.OnScaleOverTime;
+            @PrimaryButton.started += instance.OnPrimaryButton;
+            @PrimaryButton.performed += instance.OnPrimaryButton;
+            @PrimaryButton.canceled += instance.OnPrimaryButton;
+            @SecondaryButton.started += instance.OnSecondaryButton;
+            @SecondaryButton.performed += instance.OnSecondaryButton;
+            @SecondaryButton.canceled += instance.OnSecondaryButton;
         }
 
         /// <summary>
@@ -4498,6 +4620,12 @@ public partial class @MyInputActions: IInputActionCollection2, IDisposable
             @ScaleOverTime.started -= instance.OnScaleOverTime;
             @ScaleOverTime.performed -= instance.OnScaleOverTime;
             @ScaleOverTime.canceled -= instance.OnScaleOverTime;
+            @PrimaryButton.started -= instance.OnPrimaryButton;
+            @PrimaryButton.performed -= instance.OnPrimaryButton;
+            @PrimaryButton.canceled -= instance.OnPrimaryButton;
+            @SecondaryButton.started -= instance.OnSecondaryButton;
+            @SecondaryButton.performed -= instance.OnSecondaryButton;
+            @SecondaryButton.canceled -= instance.OnSecondaryButton;
         }
 
         /// <summary>
@@ -5223,6 +5351,20 @@ public partial class @MyInputActions: IInputActionCollection2, IDisposable
         /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
         /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
         void OnScaleOverTime(InputAction.CallbackContext context);
+        /// <summary>
+        /// Method invoked when associated input action "PrimaryButton" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+        /// </summary>
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
+        void OnPrimaryButton(InputAction.CallbackContext context);
+        /// <summary>
+        /// Method invoked when associated input action "SecondaryButton" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+        /// </summary>
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
+        void OnSecondaryButton(InputAction.CallbackContext context);
     }
     /// <summary>
     /// Interface to implement callback methods for all input action callbacks associated with input actions defined by "XRI Left Locomotion" which allows adding and removing callbacks.
@@ -5471,6 +5613,20 @@ public partial class @MyInputActions: IInputActionCollection2, IDisposable
         /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
         /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
         void OnScaleOverTime(InputAction.CallbackContext context);
+        /// <summary>
+        /// Method invoked when associated input action "PrimaryButton" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+        /// </summary>
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
+        void OnPrimaryButton(InputAction.CallbackContext context);
+        /// <summary>
+        /// Method invoked when associated input action "SecondaryButton" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+        /// </summary>
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
+        void OnSecondaryButton(InputAction.CallbackContext context);
     }
     /// <summary>
     /// Interface to implement callback methods for all input action callbacks associated with input actions defined by "XRI Right Locomotion" which allows adding and removing callbacks.

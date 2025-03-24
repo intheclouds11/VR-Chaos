@@ -21,7 +21,7 @@
         "SimulationUpdateTimeMode": 0,
         "PlayerCount": 10,
         "TickRateSelection": {
-            "Client": 64,
+            "Client": 100,
             "ServerIndex": 0,
             "ClientSendIndex": 1,
             "ServerSendIndex": 1
@@ -65,9 +65,10 @@
         "Assembly-CSharp-firstpass",
         "Fusion.Addons.Physics",
         "Fusion.Addons.FSM",
-        "Meta.XR.MultiplayerBlocks.Fusion"
+        "Meta.XR.MultiplayerBlocks.Fusion",
+        "PhotonVoice.Fusion"
     ],
-    "UseSerializableDictionary": true,
+    "UseSerializableDictionary": false,
     "NullChecksForNetworkedProperties": true,
     "CheckRpcAttributeUsage": false,
     "CheckNetworkedPropertiesBeingEmpty": false

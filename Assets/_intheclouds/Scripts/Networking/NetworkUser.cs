@@ -1,5 +1,6 @@
 using System;
 using Fusion;
+using Photon.Voice.Unity;
 using UnityEngine;
 
 public class NetworkUser : NetworkBehaviour
@@ -25,8 +26,22 @@ public class NetworkUser : NetworkBehaviour
             playerStats.SetNetworkUser(this);
 
             NetworkedHealth = playerStats.CurrentHealth;
+
+            Debug.Log("HasInputAuthority, disabling Speaker ------------");
+            GetComponentInChildren<Speaker>().gameObject.SetActive(false);
         }
-        
+    }
+
+    private void Update()
+    {
+        if (HasInputAuthority && MyInputSystem.Instance.WasSecondaryButtonActivated(HandSide.Left))
+        {
+            var netEnemy = FindAnyObjectByType<NetworkEnemy>();
+            if (netEnemy)
+            {
+                netEnemy.RPC_ToggleEnemyAI();
+            }
+        }
     }
 
     public override void Spawned()
@@ -48,7 +63,7 @@ public class NetworkUser : NetworkBehaviour
     }
 
     [Rpc(RpcSources.All, RpcTargets.StateAuthority)]
-    public void RPC_DealDamage(int damage, Vector3 knockBack)
+    public void RPC_TakeDamage(int damage, Vector3 knockBack)
     {
         if (!CanDamage()) return;
 

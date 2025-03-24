@@ -38,6 +38,8 @@ public class NetworkEnemy : NetworkBehaviour
     private Transform currentTarget;
     private Vector3 lastPosition;
     private Vector3 spawnedLocation;
+    private bool aiActive = true;
+    private bool respawning;
 
 
     private void Start()
@@ -58,16 +60,28 @@ public class NetworkEnemy : NetworkBehaviour
 
     public override void FixedUpdateNetwork()
     {
+        if (respawning)
+        {
+            respawning = false;
+            transform.position = spawnedLocation;
+        }
+
         CheckDisengageTargets();
 
-        if (NetworkedHealth > 0 && targets.Any())
+        if (aiActive)
         {
-            var newSpeed = (startingHealth - NetworkedHealth) * 0.5f + baseSpeed;
-            transform.position = Vector3.MoveTowards(transform.position, targets.Last().position, newSpeed * Runner.DeltaTime);
-        }
-        else if (NetworkedHealth <= 0)
-        {
-            transform.Rotate(Vector3.up, 180f * Runner.DeltaTime);
+            if (NetworkedHealth > 0 && targets.Any())
+            {
+                var newSpeed = (startingHealth - NetworkedHealth) * 0.5f + baseSpeed;
+                var target = targets.Last();
+                transform.position = Vector3.MoveTowards(transform.position, target.position, newSpeed * Runner.DeltaTime);
+                transform.LookAt(target);
+                transform.eulerAngles = new Vector3(0f, transform.eulerAngles.y, 0f);
+            }
+            else if (NetworkedHealth <= 0)
+            {
+                transform.Rotate(Vector3.up, 180f * Runner.DeltaTime);
+            }
         }
 
         lastPosition = transform.position;
@@ -93,16 +107,16 @@ public class NetworkEnemy : NetworkBehaviour
     private void OnTriggerEnter(Collider other)
     {
         var netUser = other.GetComponentInParent<NetworkUser>();
-        if (netUser)
+        if (netUser && other.gameObject.layer == LayerMask.NameToLayer("Damageable"))
         {
-            if (other.gameObject.layer == LayerMask.NameToLayer("Damageable") &&
-                Vector3.Distance(transform.position, other.transform.position) < 2f)
+            if (Vector3.Distance(transform.position, other.transform.position) < 2f)
             {
                 // If recently damaged, don't hurt player
-                if (NetworkedHealth > 0 && Time.time - lastDamageTime > damageCooldown)
+                if (NetworkedHealth > 0 && Time.time - lastDamageTime > damageCooldown + 1f)
                 {
                     var knockBackDirection = (transform.position - lastPosition).normalized;
-                    netUser.RPC_DealDamage(baseDamage, -knockBackDirection * 5);
+                    knockBackDirection -= Vector3.up * 0.3f;
+                    netUser.RPC_TakeDamage(baseDamage, -knockBackDirection * 9f);
                 }
             }
             else if (!targets.Contains(other.transform))
@@ -112,24 +126,31 @@ public class NetworkEnemy : NetworkBehaviour
         }
     }
 
-    [Rpc(RpcSources.All, RpcTargets.StateAuthority)]
-    public void RPC_DealDamageEnemy(int damage, Vector3 knockBack)
+    [Rpc(RpcSources.All, RpcTargets.All)]
+    public void RPC_TakeDamageEnemy(int damage, Vector3 knockBack)
     {
-        if (!CanDamage()) return;
-
         var newHealth = NetworkedHealth - damage;
-        if (newHealth > 0)
+
+        if (HasStateAuthority)
         {
-            NetworkedHealth = newHealth;
-        }
-        else
-        {
-            NetworkedHealth = 0;
-            RPC_HandleEnemyDeath();
+            if (!CanDamage()) return;
+            if (newHealth > 0)
+            {
+                NetworkedHealth = newHealth;
+            }
+            else
+            {
+                NetworkedHealth = 0;
+                Invoke(nameof(Respawn), 3f); // Respawn after 3 seconds
+
+                // RPC_HandleEnemyDeath();
+            }
+            
+            lastDamageTime = Time.time;
         }
 
-        RPC_PlayDamageAudio(newHealth <= 0);
-        lastDamageTime = Time.time;
+        AudioSource.PlayOneShot(newHealth <= 0 ? DiedSFX : HitSFX);
+        // RPC_PlayDamageAudio(newHealth <= 0);
     }
 
     private bool CanDamage()
@@ -148,30 +169,17 @@ public class NetworkEnemy : NetworkBehaviour
 
         return true;
     }
-
-    [Rpc(RpcSources.StateAuthority, RpcTargets.All)]
-    public void RPC_PlayDamageAudio(bool died)
-    {
-        if (HasInputAuthority)
-        {
-            // damaged user plays their sfx in PlayerStats
-        }
-        else
-        {
-            // Debug.Log($"RPC_PlayDamageAudio !HasInputAuthority");
-            AudioSource.PlayOneShot(died ? DiedSFX : HitSFX);
-        }
-    }
-
-    [Rpc(RpcSources.StateAuthority, RpcTargets.StateAuthority)]
-    private void RPC_HandleEnemyDeath()
-    {
-        Invoke(nameof(Respawn), 3f); // Respawn after 3 seconds
-    }
-
+    
     private void Respawn()
     {
+        respawning = true;
+        // transform.position = spawnedLocation;
         NetworkedHealth = startingHealth;
-        transform.position = spawnedLocation;
+    }
+
+    [Rpc(RpcSources.All, RpcTargets.All)]
+    public void RPC_ToggleEnemyAI()
+    {
+        aiActive = !aiActive;
     }
 }
