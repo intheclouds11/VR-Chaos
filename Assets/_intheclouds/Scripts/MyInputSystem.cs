@@ -177,6 +177,8 @@ public class MyInputSystem : MonoBehaviour
         var action = handSide == HandSide.Left ? MyInputActions.XRILeft.HapticDevice : MyInputActions.XRIRight.HapticDevice;
         var inputDevice = handSide == HandSide.Left ? leftInputDevice : rightInputDevice;
 
+        Debug.Log($"Vibrate. action: {action}, inputDevice: {inputDevice}");
+
         if (action != null && inputDevice != null)
         {
             OpenXRInput.SendHapticImpulse(action, amplitude, frequency, duration, inputDevice);

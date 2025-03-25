@@ -5109,7 +5109,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &839823099
 Transform:
   m_ObjectHideFlags: 0
@@ -6823,7 +6823,7 @@ MonoBehaviour:
   desktopRig: {fileID: 6563095917894763578}
   forceVROnAndroid: 1
   rigSelected: 0
-  mode: 3
+  mode: 2
 --- !u!4 &1097349199
 Transform:
   m_ObjectHideFlags: 0

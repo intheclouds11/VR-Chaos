@@ -151,7 +151,7 @@ public class HandTriggerDetection : MonoBehaviour
         {
             HandleHighFiveBuff(netUser);
         }
-        else if (!isDashAttacking && !isGroundPounding && other.TryGetComponent(out Climbable climbable) &&
+        else if (!isGroundPounding && other.TryGetComponent(out Climbable climbable) &&
                  !climbablesInRange.Contains(climbable))
         {
             // Debug.Log("climbablesInRange.Add(climbable)");
