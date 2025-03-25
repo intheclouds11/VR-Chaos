@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 public class GorillaMovement : MonoBehaviour
@@ -14,6 +16,15 @@ public class GorillaMovement : MonoBehaviour
 
     [SerializeField]
     private AudioClip dashRechargedSFX;
+
+    [SerializeField]
+    private float groundPoundCooldown = 2f;
+
+    [SerializeField]
+    private AudioClip groundPoundRechargedSFX;
+
+    [SerializeField]
+    private float groundPoundSpeed = 10f;
 
     [SerializeField]
     private bool allowClimbing;
@@ -66,9 +77,11 @@ public class GorillaMovement : MonoBehaviour
 
     public bool disableMovement = false;
 
-    private Vector3 spawnedLocation;
+    public Vector3 SpawnedLocation { get; private set; }
     public bool isDashAttacking { get; private set; }
+    public bool isGroundPounding { get; private set; }
     private float lastDashAttackTime;
+    private float lastGroundPoundTime;
 
     public HandTriggerDetection leftHandTriggerDetection { get; private set; }
     public HandTriggerDetection rightHandTriggerDetection { get; private set; }
@@ -107,7 +120,7 @@ public class GorillaMovement : MonoBehaviour
         lastHeadPosition = headCollider.transform.position;
         velocityIndex = 0;
         lastPosition = transform.position;
-        spawnedLocation = lastPosition;
+        SpawnedLocation = lastPosition;
     }
 
     private void OnStartClimbing()
@@ -120,7 +133,7 @@ public class GorillaMovement : MonoBehaviour
         IsClimbing = true;
     }
 
-    private void OnStopClimbing(Vector3 climbForce)
+    private void OnStopClimbing(Vector3 climbForce, bool climbingCanceled)
     {
         // Debug.Log($"!!! GORILLA STOP CLIMBING!!!  ClimbForce: {climbForce.magnitude}");
         IsClimbing = false;
@@ -129,8 +142,10 @@ public class GorillaMovement : MonoBehaviour
         rightHandFollower.SetParent(transform.parent, true);
         leftHandFollower.position = leftHandTransform.position;
         rightHandFollower.position = rightHandTransform.position;
-
         playerRigidbody.isKinematic = false;
+
+        if (climbingCanceled) return;
+
         playerRigidbody.linearVelocity = Vector3.zero;
         var climbForceClamped = -climbForce * 40f;
 
@@ -138,21 +153,17 @@ public class GorillaMovement : MonoBehaviour
         {
             climbForceClamped = climbForceClamped.normalized * maxClimbForce;
         }
-        
+
         // Debug.Log($"!!! GORILLA STOP CLIMBING!!!  climbForceClamped magnitude: {climbForceClamped.magnitude}");
-        
+
         playerRigidbody.AddForce(climbForceClamped, ForceMode.Impulse);
         // Invoke(nameof(StopClimbing), 0.5f); // prevent accidental jumping while being boosted by climbForce
-    }
-
-    private void StopClimbing()
-    {
-        IsClimbing = false;
     }
 
     public void SetNetworkUser(NetworkUser user)
     {
         user.onDamaged += OnDamaged;
+        user.onDied += OnDied;
         user.onRespawned += OnRespawned;
     }
 
@@ -164,30 +175,49 @@ public class GorillaMovement : MonoBehaviour
 
     private void OnRespawned()
     {
+        // Debug.Log($"GORILLA ONRESPAWNED REPOSITIONING PLAYER. SpawnedLocation: {SpawnedLocation}");
         ResetHandFollowTriggers();
         playerRigidbody.linearVelocity = Vector3.zero;
-        playerRigidbody.MovePosition(spawnedLocation);
+        playerRigidbody.isKinematic = true;
+        transform.position = SpawnedLocation;
+        StartCoroutine(ReenablePhysics());
+    }
+
+    private IEnumerator ReenablePhysics()
+    {
+        yield return new WaitForSeconds(0.1f);
+        playerRigidbody.isKinematic = false;
+        disableMovement = false;
+    }
+
+    void OnDied()
+    {
+        disableMovement = true;
     }
 
     private void Update()
     {
-        // if (MyInputSystem.Instance.WasPrimaryButtonActivated(HandSide.Left))
-        // {
-        //     allowClimbing = !allowClimbing;
-        // }
-
-        disableMovement = PlayerStats.Instance.CurrentHealth == 0;
+        isGrounded = Physics.CheckSphere(groundCheck.position, 0.5f, groundMask);
 
         if (!disableMovement)
         {
-            CheckDashAttack();
+            if (!isGroundPounding)
+            {
+                CheckDashAttack();
+            }
+
+            if (!isDashAttacking)
+            {
+                CheckGroundPound();
+            }
+
             if (!IsClimbing)
             {
                 HandleMovement();
             }
         }
 
-        if (IsClimbing)
+        if (IsClimbing || disableMovement)
         {
             lastLeftHandPosition = leftHandTransform.position;
             lastRightHandPosition = rightHandTransform.position;
@@ -384,7 +414,7 @@ public class GorillaMovement : MonoBehaviour
                     leftFollowerMR.material.color = Color.red;
                     if (leftHandTriggerDetection.handRelativeVelocity.magnitude > 2.5f)
                     {
-                        DashAttack(HandSide.Left);
+                        StartCoroutine(DashAttack(HandSide.Left));
                         return;
                     }
                 }
@@ -398,7 +428,7 @@ public class GorillaMovement : MonoBehaviour
                     rightFollowerMR.material.color = Color.red;
                     if (rightHandTriggerDetection.handRelativeVelocity.magnitude > 2.5f)
                     {
-                        DashAttack(HandSide.Right);
+                        StartCoroutine(DashAttack(HandSide.Right));
                         return;
                     }
                 }
@@ -418,7 +448,7 @@ public class GorillaMovement : MonoBehaviour
         rightFollowerMR.material.color = originalFollowerColor;
     }
 
-    private void DashAttack(HandSide handSide)
+    private IEnumerator DashAttack(HandSide handSide)
     {
         // Debug.Log($"Dash attacking with handVelocity: {handVelocity}");
         isDashAttacking = true;
@@ -428,24 +458,89 @@ public class GorillaMovement : MonoBehaviour
         {
             handDirection = leftHandTriggerDetection.handRelativeVelocity.normalized;
             leftHandTriggerDetection.transform.localScale *= 1.5f; // Scale up hand trigger for easier dash attack hitting
-            leftHandTriggerDetection.AudioSource.PlayOneShot(PlayerStats.Instance.DashSFX);
+            leftHandTriggerDetection.AttackAudioSource.PlayOneShot(PlayerStats.Instance.DashSFX);
         }
         else
         {
             handDirection = rightHandTriggerDetection.handRelativeVelocity.normalized;
             rightHandTriggerDetection.transform.localScale *= 1.5f; // Scale up hand trigger for easier dash attack hitting
-            rightHandTriggerDetection.AudioSource.PlayOneShot(PlayerStats.Instance.DashSFX);
+            rightHandTriggerDetection.AttackAudioSource.PlayOneShot(PlayerStats.Instance.DashSFX);
         }
+
+        leftHandTriggerDetection.CancelClimbing();
+        rightHandTriggerDetection.CancelClimbing();
+
+        MyInputSystem.Instance.Vibrate(handSide, 0.75f, 0.7f, 100f);
+        PlayerStats.Instance.NetworkUser.RPC_PlayDashAttackAudio();
+
+        leftFollowerMR.material.color = Color.black;
+        rightFollowerMR.material.color = Color.black;
+        lastDashAttackTime = Time.time;
+
+        yield return null;
+        yield return null;
 
         playerRigidbody.linearVelocity = Vector3.zero;
         playerRigidbody.AddForce(handDirection * dashSpeed, ForceMode.Impulse);
+    }
+    
+    
+    public Transform groundCheck; // Empty GameObject at the player's feet
+    public float groundDistance = 0.2f; // Distance to check
+    public LayerMask groundMask; // Assign ground layer in Inspector
+    private bool isGrounded;
+    
+    private void CheckGroundPound()
+    {
+        if (Time.time - lastGroundPoundTime > groundPoundCooldown)
+        {
+            if (isGroundPounding)
+            {
+                isGroundPounding = false;
+                audioSource.PlayOneShot(groundPoundRechargedSFX);
+                // ResetHandFollowTriggers();
+            }
+            else if (!isGrounded)
+            {
+                if (MyInputSystem.Instance.WasPrimaryButtonActivated(HandSide.Right))
+                {
+                    StartCoroutine(GroundPound());
+                    return;
+                }
+            }
+        }
+    }
 
-        MyInputSystem.Instance.Vibrate(handSide, 0.75f, 1f, 100f);
-        PlayerStats.Instance.NetworkUser.RPC_PlayDashAttackAudio();
+    private IEnumerator GroundPound()
+    {
+        // Debug.Log($"Dash attacking with handVelocity: {handVelocity}");
+        isGroundPounding = true;
 
-        leftFollowerMR.material.color = Color.grey;
-        rightFollowerMR.material.color = Color.grey;
-        lastDashAttackTime = Time.time;
+        leftHandTriggerDetection.transform.localScale *= 15f; 
+        rightHandTriggerDetection.transform.localScale *= 15f; 
+
+        leftHandTriggerDetection.CancelClimbing();
+        rightHandTriggerDetection.CancelClimbing();
+
+        MyInputSystem.Instance.Vibrate(HandSide.Left, 0.75f, 0.2f, 10f);
+        MyInputSystem.Instance.Vibrate(HandSide.Right, 0.75f, 0.2f, 10f);
+        audioSource.PlayOneShot(PlayerStats.Instance.GroundPoundSFX);
+        PlayerStats.Instance.NetworkUser.RPC_PlayGroundPoundAudio();
+
+        leftFollowerMR.material.color = Color.black;
+        rightFollowerMR.material.color = Color.black;
+        lastGroundPoundTime = Time.time;
+
+        yield return null;
+        yield return null;
+
+        playerRigidbody.linearVelocity = Vector3.zero;
+        playerRigidbody.AddForce(-Vector3.up * groundPoundSpeed, ForceMode.Impulse);
+
+        yield return new WaitForSeconds(0.5f);
+        
+        leftHandTriggerDetection.transform.localScale = originalTriggerScale;
+        rightHandTriggerDetection.transform.localScale = originalTriggerScale;
     }
 
     private Vector3 CurrentLeftHandPosition()

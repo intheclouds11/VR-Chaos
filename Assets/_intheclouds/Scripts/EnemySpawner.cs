@@ -14,6 +14,8 @@ public class EnemySpawner : NetworkBehaviour
     [SerializeField]
     private List<SpawnPoint> spawnPoints;
 
+    public List<NetworkEnemy> SpawnedEnemies { get; } = new();
+    public bool EnemiesDefeated { get; private set; }
     private bool spawned;
 
 
@@ -22,13 +24,54 @@ public class EnemySpawner : NetworkBehaviour
         Instance = this;
     }
 
+    private void Start()
+    {
+        GameManager.Instance.onLevelCompleted += Reset;
+    }
+
+    public void Reset()
+    {
+        EnemiesDefeated = false;
+    }
+
+    private void Update()
+    {
+        foreach (var spawnedEnemy in SpawnedEnemies)
+        {
+            if (spawnedEnemy.NetworkedHealth > 0)
+            {
+                EnemiesDefeated = false;
+                return;
+            }
+
+            EnemiesDefeated = true;
+        }
+    }
+
     public void SpawnEnemies()
     {
         if (spawned) return;
 
         spawned = true;
-        var spawnPoint = spawnPoints.First();
-        // Debug.Log($"Spawning enemies! enemy: {enemyPrefab}, spawnPoint: {spawnPoint}");
-        Runner.Spawn(enemyPrefab, spawnPoint.transform.position, spawnPoint.transform.rotation);
+        foreach (var spawnPoint in spawnPoints)
+        {
+            Debug.Log($"Spawning enemies! enemy: {enemyPrefab}, spawnPoint: {spawnPoint}", spawnPoint);
+            var obj = Runner.Spawn(enemyPrefab, spawnPoint.transform.position, spawnPoint.transform.rotation);
+            if (obj.TryGetComponent(out NetworkEnemy netEnemy))
+            {
+                SpawnedEnemies.Add(netEnemy);
+            }
+            else
+            {
+                Debug.LogError($"Failed to add to spawnedEnemies list!");
+            }
+        }
+
+        Invoke(nameof(StartGame), 3f);
+    }
+
+    private void StartGame()
+    {
+        GameManager.Instance.gameStarted = true;
     }
 }

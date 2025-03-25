@@ -11,6 +11,7 @@ public class NetworkUser : NetworkBehaviour
     private PlayerStats playerStats;
     public event Action<int, Vector3> onDamaged;
     public event Action onRespawned;
+    public event Action onDied;
     private const float damageCooldown = 0.5f;
     private float lastDamageTime;
     private AudioSource audioSource;
@@ -18,16 +19,19 @@ public class NetworkUser : NetworkBehaviour
 
     private void Start()
     {
+        GameManager.Instance.SetNetworkUser(this);
+
         audioSource = GetComponentInChildren<AudioSource>();
 
         if (HasInputAuthority)
         {
+            GameManager.Instance.onLevelCompleted += Respawn;
+
             playerStats = PlayerStats.Instance;
             playerStats.SetNetworkUser(this);
 
             NetworkedHealth = playerStats.CurrentHealth;
 
-            Debug.Log("HasInputAuthority, disabling Speaker ------------");
             GetComponentInChildren<Speaker>().gameObject.SetActive(false);
         }
     }
@@ -36,8 +40,7 @@ public class NetworkUser : NetworkBehaviour
     {
         if (HasInputAuthority && MyInputSystem.Instance.WasSecondaryButtonActivated(HandSide.Left))
         {
-            var netEnemy = FindAnyObjectByType<NetworkEnemy>();
-            if (netEnemy)
+            foreach (var netEnemy in EnemySpawner.Instance.SpawnedEnemies)
             {
                 netEnemy.RPC_ToggleEnemyAI();
             }
@@ -46,7 +49,7 @@ public class NetworkUser : NetworkBehaviour
 
     public override void Spawned()
     {
-        Debug.Log("NetworkUser -------Spawned");
+        // Debug.Log("NetworkUser -------Spawned");
 
         if (Runner.IsSharedModeMasterClient)
         {
@@ -58,7 +61,7 @@ public class NetworkUser : NetworkBehaviour
     {
         if (HasInputAuthority)
         {
-            Debug.Log($"Networked health updated: {NetworkedHealth}");
+            // Debug.Log($"Networked health updated: {NetworkedHealth}");
         }
     }
 
@@ -75,6 +78,7 @@ public class NetworkUser : NetworkBehaviour
         else
         {
             NetworkedHealth = 0;
+            onDied?.Invoke();
             RPC_HandleDeath();
         }
 
@@ -128,6 +132,20 @@ public class NetworkUser : NetworkBehaviour
             audioSource.PlayOneShot(PlayerStats.Instance.DashSFX);
         }
     }
+    
+    [Rpc(RpcSources.StateAuthority, RpcTargets.All)]
+    public void RPC_PlayGroundPoundAudio()
+    {
+        if (HasInputAuthority)
+        {
+            // damaged user plays their sfx in PlayerStats
+        }
+        else
+        {
+            // Debug.Log($"Playing sfx at position {position}");
+            audioSource.PlayOneShot(PlayerStats.Instance.GroundPoundSFX);
+        }
+    }
 
     [Rpc(RpcSources.StateAuthority, RpcTargets.StateAuthority)]
     private void RPC_HandleDeath()
@@ -149,8 +167,20 @@ public class NetworkUser : NetworkBehaviour
     {
         if (!playerStats.HasHighFiveBuff)
         {
-            Debug.Log($"RPC_HandleHighFive");
             playerStats.SetHighFiveBuff(true);
         }
+    }
+
+    [Rpc(RpcSources.All, RpcTargets.StateAuthority)]
+    public void RPC_OnLevelCompleted()
+    {
+        GameManager.Instance.PlayCompletedSFX();
+        if (GorillaMovement.Instance) GorillaMovement.Instance.disableMovement = true;
+    }
+    
+    [Rpc(RpcSources.All, RpcTargets.StateAuthority)]
+    public void RPC_OnGoalUnlocked()
+    {
+        GameManager.Instance.PlayGoalUnlockedSFX();
     }
 }

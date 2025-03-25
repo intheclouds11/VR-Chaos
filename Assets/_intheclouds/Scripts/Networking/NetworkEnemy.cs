@@ -40,22 +40,45 @@ public class NetworkEnemy : NetworkBehaviour
     private Vector3 spawnedLocation;
     private bool aiActive = true;
     private bool respawning;
+    private Color startingColor;
+    private MeshRenderer mr;
 
 
     private void Start()
     {
         AudioSource = GetComponentInChildren<AudioSource>();
         spawnedLocation = transform.position;
-
+        mr = GetComponentInChildren<MeshRenderer>();
+        startingColor = mr.material.color;
+        
         if (HasStateAuthority)
         {
             NetworkedHealth = startingHealth;
+            GameManager.Instance.onLevelCompleted += Respawn;
         }
     }
 
     public void HealthChanged()
     {
         // Debug.Log($"Enemy Networked health updated: {NetworkedHealth}");
+        if (NetworkedHealth == startingHealth)
+        {
+            mr.material.color = startingColor;
+        }
+        else if (NetworkedHealth == startingHealth - 1)
+        {
+            mr.material.color = Color.yellow;
+        }
+        else if (NetworkedHealth == startingHealth - 2)
+        {
+            mr.material.color = Color.red;
+        }
+        else
+        {
+            mr.material.color = Color.black;
+        }
+        
+        mr.material.color = new Color(mr.material.color.r, mr.material.color.g, mr.material.color.b, startingColor.a);
     }
 
     public override void FixedUpdateNetwork()
@@ -98,7 +121,7 @@ public class NetworkEnemy : NetworkBehaviour
 
             if (distanceFromPlayer >= disengageDistance)
             {
-                Debug.Log("Disengaged target");
+                // Debug.Log("Disengaged target");
                 targets.Remove(target);
             }
         }
@@ -115,7 +138,7 @@ public class NetworkEnemy : NetworkBehaviour
                 if (NetworkedHealth > 0 && Time.time - lastDamageTime > damageCooldown + 1f)
                 {
                     var knockBackDirection = (transform.position - lastPosition).normalized;
-                    knockBackDirection -= Vector3.up * 0.3f;
+                    knockBackDirection -= Vector3.up * 0.5f;
                     netUser.RPC_TakeDamage(baseDamage, -knockBackDirection * 9f);
                 }
             }
@@ -141,16 +164,13 @@ public class NetworkEnemy : NetworkBehaviour
             else
             {
                 NetworkedHealth = 0;
-                Invoke(nameof(Respawn), 3f); // Respawn after 3 seconds
-
-                // RPC_HandleEnemyDeath();
+                // Invoke(nameof(Respawn), 3f); // Respawn after 3 seconds
             }
-            
+
             lastDamageTime = Time.time;
         }
 
         AudioSource.PlayOneShot(newHealth <= 0 ? DiedSFX : HitSFX);
-        // RPC_PlayDamageAudio(newHealth <= 0);
     }
 
     private bool CanDamage()
@@ -169,17 +189,17 @@ public class NetworkEnemy : NetworkBehaviour
 
         return true;
     }
-    
+
     private void Respawn()
     {
         respawning = true;
-        // transform.position = spawnedLocation;
         NetworkedHealth = startingHealth;
     }
 
     [Rpc(RpcSources.All, RpcTargets.All)]
     public void RPC_ToggleEnemyAI()
     {
+        // Debug.Log($"EnemyAI toggled to: {aiActive}");
         aiActive = !aiActive;
     }
 }

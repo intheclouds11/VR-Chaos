@@ -2,6 +2,8 @@ using System;
 using Fusion.XR.Shared.Rig;
 using TMPro;
 using UnityEngine;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 using UnityEngine.Serialization;
 
 public class PlayerStats : MonoBehaviour
@@ -57,6 +59,10 @@ public class PlayerStats : MonoBehaviour
     [SerializeField]
     private AudioClip dashSFX;
     public AudioClip DashSFX => dashSFX;
+    
+    [SerializeField]
+    private AudioClip groundPoundSFX;
+    public AudioClip GroundPoundSFX => groundPoundSFX;
 
     [SerializeField]
     private AudioClip lightDamageSFX;
@@ -65,17 +71,24 @@ public class PlayerStats : MonoBehaviour
     [SerializeField]
     private AudioClip dashDamageSFX;
     public AudioClip DashDamageSFX => dashDamageSFX;
+    
+    [SerializeField]
+    private AudioClip climbSFX;
+    public AudioClip ClimbSFX => climbSFX;
 
     [SerializeField]
     private AudioClip highFiveSFX;
-    
+
     public HardwareRig HardwareRig { get; private set; }
     public NetworkUser NetworkUser { get; private set; }
     public bool DesktopMode { get; private set; }
     public bool HasHighFiveBuff { get; private set; }
     public float AttackCooldown { get; private set; } = 0.5f;
     public float LastAttackTime { get; set; }
-    
+    private Volume globalVolume;
+    private float startingSaturation;
+    private float startingPostExposure;
+
 
     public void SetHighFiveBuff(bool toggle)
     {
@@ -100,27 +113,34 @@ public class PlayerStats : MonoBehaviour
         audioSource = GetComponentInChildren<AudioSource>();
         HardwareRig = GetComponentInChildren<HardwareRig>();
         DesktopMode = DesktopMovement.Instance;
+        globalVolume = FindAnyObjectByType<Volume>();
+        globalVolume.profile.TryGet(out ColorAdjustments colorAdjustments);
+        startingSaturation = colorAdjustments.saturation.value;
+        startingPostExposure = colorAdjustments.postExposure.value;
     }
 
     private void ResetStats()
     {
         CurrentHealth = startingHealth;
+        globalVolume.profile.TryGet(out ColorAdjustments colorAdjustments);
+        colorAdjustments.saturation.value = startingSaturation;
+        colorAdjustments.postExposure.value = startingSaturation;
         HasHighFiveBuff = false;
     }
 
-    public void SetNetworkUser(NetworkUser user)
+    public void SetNetworkUser(NetworkUser netUser)
     {
-        NetworkUser = user;
+        NetworkUser = netUser;
         NetworkUser.onDamaged += TakeDamage;
         NetworkUser.onRespawned += OnRespawned;
 
         if (!DesktopMode)
         {
-            GorillaMovement.Instance.SetNetworkUser(user);
+            GorillaMovement.Instance.SetNetworkUser(netUser);
         }
         else
         {
-            DesktopMovement.Instance.SetNetworkUser(user);
+            DesktopMovement.Instance.SetNetworkUser(netUser);
         }
     }
 
@@ -142,6 +162,10 @@ public class PlayerStats : MonoBehaviour
         }
 
         healthIndicatorVR.text = $"Health: {newHealth}/{startingHealth}";
+
+        globalVolume.profile.TryGet(out ColorAdjustments colorAdjustments);
+        colorAdjustments.saturation.value -= 33f;
+        colorAdjustments.postExposure.value -= 0.5f;
     }
 
     private void OnRespawned()

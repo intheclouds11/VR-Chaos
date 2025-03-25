@@ -1,15 +1,16 @@
+using System;
 using UnityEngine;
 
 public class Goal : MonoBehaviour
 {
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
+    public static Goal Instance;
+
+    private void Awake()
     {
-        
+        Instance = this;
     }
 
-    // Update is called once per frame
-    void Update()
+    private void Update()
     {
         transform.Rotate(Vector3.up, 40f * Time.deltaTime);
     }

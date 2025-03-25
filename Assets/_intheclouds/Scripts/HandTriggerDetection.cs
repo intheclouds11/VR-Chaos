@@ -4,6 +4,7 @@ using System.Linq;
 using Fusion;
 using Fusion.XR.Shared.Rig;
 using UnityEngine;
+using Random = UnityEngine.Random;
 
 public enum HandSide
 {
@@ -14,7 +15,7 @@ public enum HandSide
 public class HandTriggerDetection : MonoBehaviour
 {
     public event Action onStartClimbing;
-    public event Action<Vector3> onStopClimbing;
+    public event Action<Vector3, bool> onStopClimbing;
 
     [SerializeField]
     private HandSide handSide;
@@ -27,15 +28,11 @@ public class HandTriggerDetection : MonoBehaviour
     private Transform headTransform;
     private Vector3 lastHandPos;
     private Vector3 lastHeadPos;
-    public AudioSource AudioSource { get; private set; }
+    public AudioSource AttackAudioSource { get; private set; }
+    public AudioSource ClimbAudioSource;
     private List<Climbable> climbablesInRange = new();
     public bool IsClimbing { get; private set; }
-
-    public void StopClimbing()
-    {
-        IsClimbing = false;
-    }
-
+    private bool climbingCanceled;
     private bool startedClimbing;
     private bool wasClimbing;
     private Vector3 climbAnchor;
@@ -48,10 +45,12 @@ public class HandTriggerDetection : MonoBehaviour
     /// </summary>
     public Vector3 handRelativeVelocity { get; private set; }
 
+    private Vector3 headVelocity;
+
 
     private void Start()
     {
-        AudioSource = GetComponent<AudioSource>();
+        AttackAudioSource = GetComponent<AudioSource>();
         playerStats = GetComponentInParent<PlayerStats>();
         hardwareRig = GetComponentInParent<HardwareRig>();
         if (!playerStats.DesktopMode)
@@ -84,7 +83,7 @@ public class HandTriggerDetection : MonoBehaviour
     private void CheckHandVelocity()
     {
         Vector3 handVelocity = (handTransform.position - lastHandPos) / Time.deltaTime;
-        Vector3 headVelocity = (headTransform.position - lastHeadPos) / Time.deltaTime;
+        headVelocity = (headTransform.position - lastHeadPos) / Time.deltaTime;
 
         if (!playerStats.DesktopMode)
         {
@@ -108,12 +107,13 @@ public class HandTriggerDetection : MonoBehaviour
 
         var netUser = other.GetComponentInParent<NetworkUser>();
         var netEnemy = other.GetComponentInParent<NetworkEnemy>();
+        var isDashAttacking = !playerStats.DesktopMode && GorillaMovement.Instance.isDashAttacking;
+        var isGroundPounding = !playerStats.DesktopMode && GorillaMovement.Instance.isGroundPounding;
 
         if (other.gameObject.layer == LayerMask.NameToLayer("Damageable") &&
             Time.time - playerStats.LastAttackTime > playerStats.AttackCooldown)
         {
-            var isDashAttacking = !playerStats.DesktopMode && GorillaMovement.Instance.isDashAttacking;
-            if (!isDashAttacking && handRelativeVelocity.magnitude <= 3.5f)
+            if (!isGroundPounding && !isDashAttacking && handRelativeVelocity.magnitude <= 3.5f)
             {
                 // Debug.Log("-------Hand too slow to damage--------");
                 return;
@@ -126,7 +126,7 @@ public class HandTriggerDetection : MonoBehaviour
             knockBackDirection -= Vector3.up * 0.1f;
 
             float knockbackAmount;
-            if (!playerStats.DesktopMode && isDashAttacking)
+            if (isGroundPounding || isDashAttacking)
             {
                 knockbackAmount = 10f;
             }
@@ -146,11 +146,13 @@ public class HandTriggerDetection : MonoBehaviour
                 AfterAttack(isDashAttacking);
             }
         }
-        else if (other.gameObject.layer == LayerMask.NameToLayer("Hand") && netUser && !netUser.HasInputAuthority)
+        else if (!isDashAttacking && !isGroundPounding && other.gameObject.layer == LayerMask.NameToLayer("Hand") && netUser &&
+                 !netUser.HasInputAuthority)
         {
             HandleHighFiveBuff(netUser);
         }
-        else if (other.TryGetComponent(out Climbable climbable) && !climbablesInRange.Contains(climbable))
+        else if (!isDashAttacking && !isGroundPounding && other.TryGetComponent(out Climbable climbable) &&
+                 !climbablesInRange.Contains(climbable))
         {
             // Debug.Log("climbablesInRange.Add(climbable)");
             climbablesInRange.Add(climbable);
@@ -170,7 +172,7 @@ public class HandTriggerDetection : MonoBehaviour
     {
         playerStats.LastAttackTime = Time.time;
         MyInputSystem.Instance.Vibrate(handSide, 2f, 0.05f, 10f);
-        AudioSource.PlayOneShot(isDashAttacking ? playerStats.DashDamageSFX : playerStats.LightDamageSFX);
+        AttackAudioSource.PlayOneShot(isDashAttacking ? playerStats.DashDamageSFX : playerStats.LightDamageSFX);
     }
 
     private void HandleHighFiveBuff(NetworkUser netUser)
@@ -200,6 +202,9 @@ public class HandTriggerDetection : MonoBehaviour
             if (climbablesInRange.Count >= 1 && gripActivated)
             {
                 // Debug.Log($"climbablesInRange.Count: {climbablesInRange.Count}");
+                MyInputSystem.Instance.Vibrate(handSide, 0.2f, 0.1f, 100f);
+                ClimbAudioSource.pitch = Random.Range(0.5f, 0.85f);
+                ClimbAudioSource.PlayOneShot(playerStats.ClimbSFX, 0.3f);
                 IsClimbing = true;
                 wasClimbing = true;
             }
@@ -238,8 +243,25 @@ public class HandTriggerDetection : MonoBehaviour
 
             if (!otherHandTriggerDetection.IsClimbing)
             {
-                onStopClimbing?.Invoke(handDelta);
+                onStopClimbing?.Invoke(handDelta, climbingCanceled);
             }
+
+            climbingCanceled = false;
         }
+    }
+
+    public void StopClimbing()
+    {
+        IsClimbing = false;
+    }
+
+    public void CancelClimbing()
+    {
+        if (IsClimbing)
+        {
+            climbingCanceled = true;
+        }
+
+        StopClimbing();
     }
 }
